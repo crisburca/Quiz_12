@@ -1,0 +1,81 @@
+---
+format: pdf
+---
+
+
+```{r, include=FALSE}
+library(rstanarm)
+library(dataverse)
+library(ggplot2)
+library(tibble)
+library(dplyr)
+library(modelsummary)
+```
+
+
+```{r}
+#Question 2
+
+set.seed(301)
+generate_data <- function(i = 1000) {
+  data <- tibble( party = sample(0:1, i, replace = TRUE),
+      age = sample(c('18-24', '25-34', '35-44', '45-54', '55+'), i, replace = TRUE),
+      gender = sample(c('Male', 'Female'), i, replace = TRUE),
+      income = sample(c('Low', 'Medium', 'High'), i, replace = TRUE),
+      education = sample(c('High School', 'Bachelor', 'Master', 'Doctorate'),
+                         i, replace = TRUE)
+      )
+return(data)
+}
+
+sim_data <- generate_data(1000)
+
+
+
+# Example for Age Group
+ggplot(sim_data, aes(x = age, fill = factor(party))) +
+  geom_bar(position = "fill") +
+  scale_fill_manual(values = c("0" = "orangered", "1" = "skyblue2"),
+                    labels = c("0" = "Republican", "1" = "Democrat")) +
+  labs(x = "Age", y = "Percentage of Support", fill = "Vote") +
+  theme_minimal()
+
+
+```
+
+```{r}
+#| include: false
+set.seed(853)
+
+sim_data_reduced <- 
+  sim_data |> 
+  slice_sample(n = 1000)
+
+political_preferences <-
+  stan_glm(
+    party ~ age + gender + education,
+    data = sim_data,
+    family = binomial(link = "logit"),
+    prior = normal(location = 0, scale = 2.5, autoscale = TRUE),
+    prior_intercept = 
+      normal(location = 0, scale = 2.5, autoscale = TRUE),
+    seed = 853
+  )
+
+saveRDS(
+  political_preferences,
+  file = "political_preferences.rds"
+)
+```
+
+```{r}
+political_preferences <-
+  readRDS(file = "political_preferences.rds")
+
+modelsummary(
+  list(
+    "Support Biden" = political_preferences
+  ),
+  statistic = "mad"
+  )
+```
